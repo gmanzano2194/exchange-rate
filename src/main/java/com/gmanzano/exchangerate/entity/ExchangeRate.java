@@ -8,6 +8,8 @@ import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -30,6 +32,7 @@ import lombok.ToString;
 @Setter
 @Builder
 @ToString
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ExchangeRate {
   private @Id @GeneratedValue Long exchangeRateId;
   private String description;

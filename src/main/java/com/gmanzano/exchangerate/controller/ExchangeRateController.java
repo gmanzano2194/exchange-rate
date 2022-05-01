@@ -5,16 +5,22 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
 import com.gmanzano.exception.CurrencyNotFoundException;
 import com.gmanzano.exception.ExchangeRateNotFoundException;
+import com.gmanzano.exchangerate.dto.CalculateAmountDto;
 import com.gmanzano.exchangerate.dto.ExchangeRateDto;
 import com.gmanzano.exchangerate.entity.Currency;
 import com.gmanzano.exchangerate.entity.ExchangeRate;
 import com.gmanzano.exchangerate.entity.ExchangeRateModelAssembler;
 import com.gmanzano.exchangerate.entity.Status;
 import com.gmanzano.exchangerate.repository.ExchangeRateRepository;
+
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.validation.Valid;
+
+import com.gmanzano.exchangerate.response.CalculateAmountResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
@@ -215,6 +221,49 @@ public class ExchangeRateController {
             .withTitle("Method not allowed")
             .withDetail("You can't activate an exchangeRate that is in the "
                 + Status.INACTIVE + " status"));
+  }
+
+  /**
+   * Metodo calculateAmount.
+   * Calcula un monto de acuerdo al tipo de cambio
+   *
+   * @return ResponseEntity
+   */
+  @PostMapping("/exchange-rates/calculate-amount")
+  public ResponseEntity<Object> calculateAmount(
+      @Valid @RequestBody CalculateAmountDto calculateAmountDto) {
+    CalculateAmountResponse response = null;
+    ExchangeRate exchangeRate = exchangeRateRepository.findExchangeRateByInputCurrencyAndOutputCurrencyById(
+        calculateAmountDto.getInputCurrency(), calculateAmountDto.getOutputCurrency()
+    );
+    if (Objects.nonNull(exchangeRate)) {
+      Currency inputCurrency = Currency.builder()
+          .name(exchangeRate.getInputCurrency().getName())
+          .currencyId(exchangeRate.getInputCurrency().getCurrencyId())
+          .build();
+      Currency outputCurrency = Currency.builder()
+          .name(exchangeRate.getOutputCurrency().getName())
+          .currencyId(exchangeRate.getOutputCurrency().getCurrencyId())
+          .build();
+      ExchangeRate formattedExchangeRate = ExchangeRate.builder()
+          .exchangeRateId(exchangeRate.getExchangeRateId())
+          .inputCurrency(inputCurrency)
+          .outputCurrency(outputCurrency)
+          .rate(exchangeRate.getRate())
+          .build();
+      BigDecimal calculatedAmount = calculateAmountDto.getInputAmount().multiply(exchangeRate.getRate());
+      String formattedResult = exchangeRate.getOutputCurrency().getSymbol().concat(calculatedAmount.toString());
+      response = CalculateAmountResponse.builder()
+          .amount(calculateAmountDto.getInputAmount())
+          .calculatedAmount(formattedResult)
+          .exchangeRate(formattedExchangeRate)
+          .build();
+    } else {
+      throw new ExchangeRateNotFoundException(0L);
+    }
+    return ResponseEntity
+        .ok()
+        .body(response);
   }
 
 }
